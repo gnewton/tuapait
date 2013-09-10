@@ -1,7 +1,0 @@
-package ca.gnewton.tuapait;
-
-
-public interface TCache{
-
-
-}
