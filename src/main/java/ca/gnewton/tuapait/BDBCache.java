@@ -189,6 +189,7 @@ public class BDBCache implements TCache
 
 
     public boolean containsKey(String key){
+	LOGGER.info("containsKey inited=" + inited);
 	try{
 	    if(!inited){
 		brokenConfigReason = "Config broken: did not run init() in containsKey();  key=" + key;
@@ -347,17 +348,19 @@ public class BDBCache implements TCache
 	    LOGGER.info("OPENING DATABASE....broken config: " + brokenConfigReason);
 	    return;
 	}
-	this.dbDir = dbDir;
-	this.readOnly = readOnly;
-
-	dbKey = dbDir + readOnly;
 
 	lock.lock();
 	try{
+	    this.dbDir = dbDir;
+	    this.readOnly = readOnly;
+	    this.dbKey = dbDir + readOnly;
+
 	    inited = true;
 	    if(openDatabases.containsKey(dbKey)){
 		db = openDatabases.get(dbKey);
-		return;
+		if(db != null){
+		    return;
+		}
 	    }
 	    if(db != null){
 		LOGGER.info("ALREADY OPENED DATABASE...." + dbDir);
