@@ -32,7 +32,8 @@ public class BDBCache implements TCache
 
     public static final String DEFAULT_CACHE_NAME = "bdbcache";
 
-    private long timeToLiveMinutes = Long.MAX_VALUE;
+    private long timeToLiveMinutes = 60; // not Long.MAX_VALUE;
+    //private long timeToLiveMinutes = Long.MAX_VALUE;
 
     private static final Lock lock = new ReentrantLock();
     private static final Logger LOGGER = Logger.getLogger(BDBCache.class.getName()); 
@@ -57,25 +58,9 @@ public class BDBCache implements TCache
 
 
     public void init(Properties p) {
-	if(p != null){
-	    if(p.containsKey(DB_DIR_KEY)){
-		dbDir = p.getProperty(DB_DIR_KEY);
-	    }
-	    if(p.containsKey(OVERWRITE_KEY)){
-		overWrite = Boolean.parseBoolean(p.getProperty(OVERWRITE_KEY));
-	    }
-	    if(p.containsKey(READ_ONLY_KEY)){
-		readOnly = Boolean.parseBoolean(p.getProperty(READ_ONLY_KEY));
-	    }
-	    if(p.containsKey(TTL_MINUTES_KEY)){
-		timeToLiveMinutes = Long.decode(p.getProperty(TTL_MINUTES_KEY));
-	    }
-	    if(p.containsKey(KEY_ENCODING_KEY)){
-		keyEncoding = p.getProperty(KEY_ENCODING_KEY);
-	    }
 
+	handleProperties(p);
 
-	}
 	try{
 	    init(dbDir, overWrite, readOnly);
 	}catch(Throwable t){
@@ -459,6 +444,7 @@ public class BDBCache implements TCache
 		init(null);
 	    }
 	    DatabaseEntry deData = new DatabaseEntry();
+	    deData.setPartial(0, 0, true);
 	    OperationStatus status = null;
 	    try{
 		DatabaseEntry deKey = new DatabaseEntry(key.getBytes(keyEncoding));
@@ -506,13 +492,33 @@ public class BDBCache implements TCache
 	}
     }
 
+    private void handleProperties(final Properties p){
+	if(p != null){
+	    if(p.containsKey(DB_DIR_KEY)){
+		dbDir = p.getProperty(DB_DIR_KEY);
+	    }
+	    if(p.containsKey(OVERWRITE_KEY)){
+		overWrite = Boolean.parseBoolean(p.getProperty(OVERWRITE_KEY));
+	    }
+	    if(p.containsKey(READ_ONLY_KEY)){
+		readOnly = Boolean.parseBoolean(p.getProperty(READ_ONLY_KEY));
+	    }
+	    if(p.containsKey(TTL_MINUTES_KEY)){
+		timeToLiveMinutes = Long.decode(p.getProperty(TTL_MINUTES_KEY));
+	    }
+	    if(p.containsKey(KEY_ENCODING_KEY)){
+		keyEncoding = p.getProperty(KEY_ENCODING_KEY);
+	    }
+	}
+    }
 
-    private boolean createDbDirectory(File f) throws SecurityException{
+
+    private boolean createDbDirectory(final File f) throws SecurityException{
 	return f.mkdirs();
     }
 
 
-    private boolean evictionTime(String key, long timeStampMinutes){
+    private boolean evictionTime(final String key, final long timeStampMinutes){
 	long nowMinutes = System.currentTimeMillis()/1000/60;
 	boolean evict = (nowMinutes -timeStampMinutes) > timeToLiveMinutes;
 	if(evict){
