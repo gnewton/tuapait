@@ -426,7 +426,7 @@ public void shouldCountTwoItemsAfterAddingTwoItems(){
 	try{
 	    Properties p = new Properties();
 	    p.setProperty(BDBCache.DB_DIR_KEY, tmpDir("shouldHaveZeroEntriesAfterPutAndClear"));
-	    p.setProperty(BDBCache.OVERWRITE_KEY, "true");
+	    p.setProperty(BDBCache.OVERWRITE_KEY, "false");
 	    p.setProperty(BDBCache.TTL_MINUTES_KEY, "99999");
 
 	    c = (BDBCache)TCacheImpl.instance(p);
@@ -469,6 +469,102 @@ public void shouldCountTwoItemsAfterAddingTwoItems(){
 	    c.clear();
 	    c.put(key2, value2);
 	    Assert.assertEquals(1, c.size());
+	    c.close();
+	}
+	catch(Throwable t){
+	    t.printStackTrace();
+	    Assert.fail("This should not happen");
+	}
+	finally{
+	    try{
+		if(c != null){
+		    c.close();
+		}
+	    }
+	    catch(Throwable t){
+
+	    }
+	}
+    }
+
+    @Test
+    public void shouldHaveHitTrueAfterPutGet(){
+	BDBCache c = null;
+	try{
+	    Properties p = new Properties();
+	    p.setProperty(BDBCache.DB_DIR_KEY, tmpDir("shouldHaveHitTrueAfterPutGet"));
+	    p.setProperty(BDBCache.OVERWRITE_KEY, "true");
+	    p.setProperty(BDBCache.TTL_MINUTES_KEY, "99999");
+
+	    c = (BDBCache)TCacheImpl.instance(p);
+
+	    c.put(key, value);
+	    c.get(key);
+	    Assert.assertEquals(true, c.lastGetAHit());
+	    c.close();
+	}
+	catch(Throwable t){
+	    t.printStackTrace();
+	    Assert.fail("This should not happen");
+	}
+	finally{
+	    try{
+		if(c != null){
+		    c.close();
+		}
+	    }
+	    catch(Throwable t){
+
+	    }
+	}
+    }
+
+    @Test
+    public void shouldHaveHitFalseAfterPut(){
+	BDBCache c = null;
+	try{
+	    Properties p = new Properties();
+	    p.setProperty(BDBCache.DB_DIR_KEY, tmpDir("shouldHaveHitTrueAfterPutGet"));
+	    p.setProperty(BDBCache.OVERWRITE_KEY, "true");
+	    p.setProperty(BDBCache.TTL_MINUTES_KEY, "99999");
+
+	    c = (BDBCache)TCacheImpl.instance(p);
+
+	    c.put(key, value);
+	    Assert.assertEquals(false, c.lastGetAHit());
+	    c.close();
+	}
+	catch(Throwable t){
+	    t.printStackTrace();
+	    Assert.fail("This should not happen");
+	}
+	finally{
+	    try{
+		if(c != null){
+		    c.close();
+		}
+	    }
+	    catch(Throwable t){
+
+	    }
+	}
+    }
+
+
+    @Test
+    public void shouldHaveHitFalseAfterGetWithUnknownkey(){
+	BDBCache c = null;
+	try{
+	    Properties p = new Properties();
+	    p.setProperty(BDBCache.DB_DIR_KEY, tmpDir("shouldHaveHitTrueAfterPutGet"));
+	    p.setProperty(BDBCache.OVERWRITE_KEY, "true");
+	    p.setProperty(BDBCache.TTL_MINUTES_KEY, "99999");
+
+	    c = (BDBCache)TCacheImpl.instance(p);
+
+	    c.put(key, value);
+	    c.get(key2);
+	    Assert.assertEquals(false, c.lastGetAHit());
 	    c.close();
 	}
 	catch(Throwable t){

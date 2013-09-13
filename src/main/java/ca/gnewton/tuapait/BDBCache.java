@@ -59,6 +59,8 @@ public class BDBCache implements TCache
     private volatile long hits = 0;
     private volatile long misses = 0; 
 
+    private volatile boolean lastGetAHit = false;
+
     protected BDBCache(){
 	
     }
@@ -78,12 +80,12 @@ public class BDBCache implements TCache
     }
 
 
-    public void delete(String key){
+    public boolean delete(String key){
 	LOGGER.info("START delete: " + key);
 
 	if(brokenConfig){
 	    LOGGER.warning("Config broken: no caching functionality; unable to delete()");
-	    return;
+	    return false;
 	}
 
 	lock.lock();
@@ -92,7 +94,7 @@ public class BDBCache implements TCache
 		brokenConfigReason = "Config broken: did not run init(); key=" + key;
 		LOGGER.warning(brokenConfigReason);
 		brokenConfig = true;
-		return;
+		return false;
 	    }
 
 	    DatabaseEntry deKey = new DatabaseEntry(key.getBytes(keyEncoding));
@@ -101,13 +103,13 @@ public class BDBCache implements TCache
 	}
 	catch(Exception e){
 	    e.printStackTrace();
-	    return;
+	    return false;
 	}
 	finally{
 	    lock.unlock();
 	    LOGGER.info("End delete: " + key);
 	}
-	
+	return true;
     }
 
 
@@ -243,13 +245,16 @@ public class BDBCache implements TCache
 		brokenConfigReason = "Config broken: did not run init(); containsKey(); key=" + key;
 		LOGGER.warning(brokenConfigReason);
 		brokenConfig = true;
+		lastGetAHit = false;
 		return null;
 	    }
 	    
 	    Carrier carrier = getCarrier(key, false);
 	    if(carrier == null){
+		lastGetAHit = false;
 		return null;
 	    }
+	    lastGetAHit = true;
 	    return carrier.object;
 	}
 	catch(Throwable t){
@@ -263,7 +268,7 @@ public class BDBCache implements TCache
 
 
 
-    public void close(){
+    public boolean close(){
 	LOGGER.info("Cache hits: " + hits + " misses=" + misses + " %hits=" + ((hits+misses==0)?"NA":(float)hits / (float)(hits+misses)));
 	LOGGER.info("CLOSING DATABASE.... numItems=" + size());
 	LOGGER.info("Num open databases: " + openDatabases.size());
@@ -298,11 +303,13 @@ public class BDBCache implements TCache
 	catch(Throwable t){
 	    LOGGER.severe("DATABASE CLOSE FAIL....");
 	    t.printStackTrace();
+	    return false;
 	}
 	finally{
 	    lock.unlock();
 	}
 	LOGGER.info("DATABASE SUCCESSFULLY CLOSED...." );
+	return true;
     }
 
 
@@ -323,23 +330,26 @@ public class BDBCache implements TCache
     }
 
 
-    public void clear(){
+    public boolean clear(){
 	if(brokenConfig){
 	    LOGGER.warning("Config broken: no caching functionality");
-	    return;
+	    return false;
 	}
 
 	close();
 	lock.lock();
 	try{
 	    db = null;
+	    overWrite = true;
 	    init(dbDir, readOnly);
 	}catch(Throwable t){
 	    t.printStackTrace();
+	    return false;
 	}
 	finally{
 	    lock.unlock();
 	}
+	return true;
     }
 
 
@@ -559,6 +569,11 @@ public class BDBCache implements TCache
 	}
 	return evict;
     }
+
+    protected boolean lastGetAHit(){
+	return lastGetAHit;
+    }
+
 }
 
 
