@@ -19,7 +19,7 @@ import com.sleepycat.je.SecondaryDatabase;
 
 public class DbEnv {
     private final static Logger LOGGER = Logger.getLogger(DbEnv.class.getName()); 
-    private Environment myEnv;
+   private Environment myEnv;
 
     private Database db;
     private Database classCatalogDb;
@@ -31,7 +31,7 @@ public class DbEnv {
 
     // The setup() method opens all our databases and the environment
     // for us.
-    public void setup(File envHome, boolean readOnly)
+    public void setup(File envHome, String dbName, boolean readOnly, boolean allowCreate)
         throws DatabaseException {
 	long logFileMax = 1024l * 1024l * 16l;
 
@@ -47,8 +47,8 @@ public class DbEnv {
 	myEnvConfig.setConfigParam(EnvironmentConfig.LOCK_N_LOCK_TABLES, "7");
 
         myDbConfig.setReadOnly(readOnly);
-	myEnvConfig.setAllowCreate(!readOnly);
-	myDbConfig.setAllowCreate(!readOnly);
+	myEnvConfig.setAllowCreate(allowCreate);
+	myDbConfig.setAllowCreate(allowCreate);
 
 	//myDbConfig.setDeferredWrite(true);
         // Allow transactions if we are writing to the database
@@ -64,7 +64,7 @@ public class DbEnv {
 	    }
 	    throw e;
 	}
-	db = myEnv.openDatabase(null, "itis-db", myDbConfig);
+	db = myEnv.openDatabase(null, dbName, myDbConfig);
     }
 
    // getter methods

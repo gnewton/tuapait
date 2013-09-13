@@ -28,18 +28,20 @@ public class BDBCache implements TCache
     public static final String OVERWRITE_KEY = "overwrite.BDBCache";
     public static final String READ_ONLY_KEY= "readOnly.BDBCache";
     public static final String TTL_MINUTES_KEY= "timeToLiveMinutes.BDBCache";
-    public static final String KEY_ENCODING_KEY= "keyEncoding.BDBCache";
+    public static final String KEY_ENCODING_KEY = "keyEncoding.BDBCache";
 
     public static final String DEFAULT_CACHE_NAME = "bdbcache";
+
+    public static final String BDB_DB_NAME = "ca.gnewton.tuapait.BDBCache";
 
     private long timeToLiveMinutes = 60; // not Long.MAX_VALUE;
     //private long timeToLiveMinutes = Long.MAX_VALUE;
 
-    private static final Lock lock = new ReentrantLock();
+    private final Lock lock = new ReentrantLock();
     private static final Logger LOGGER = Logger.getLogger(BDBCache.class.getName()); 
     private static final Map<String, Database>openDatabases = new HashMap<String, Database>();
-    private static String keyEncoding="UTF-8";
-    private static int transactionSize = 32;
+    private String keyEncoding="UTF-8";
+    private int transactionSize = 32;
 
     private volatile Database db = null;
     private volatile DbEnv env;
@@ -51,18 +53,20 @@ public class BDBCache implements TCache
     private volatile String brokenConfigReason = null;
     private volatile boolean inited = false;
     private volatile boolean readOnly = false;
+
     private volatile boolean overWrite = false;
     private volatile int transactionCount = 0;
     private volatile long hits = 0;
     private volatile long misses = 0; 
 
+    protected BDBCache(){
+	
+    }
 
     public void init(Properties p) {
-
 	handleProperties(p);
-
 	try{
-	    init(dbDir, overWrite, readOnly);
+	    init(dbDir, readOnly);
 	}catch(Throwable t){
 	    t.printStackTrace();
 	    if(brokenConfigReason == null){
@@ -107,10 +111,14 @@ public class BDBCache implements TCache
     }
 
 
-    public void put(String key, Serializable rec){
+    public boolean put(String key, Serializable rec){
+	//if(readOnly){
+	//LOGGER.warning("Unable to write to READ-ONLY database; key=" + key);
+	//return false;
+	//}
 	if(brokenConfig){
 	    LOGGER.warning("Config broken: no caching functionality; unable to put()");
-	    return;
+	    return false;
 	}
 
 	if(db == null){
@@ -118,7 +126,7 @@ public class BDBCache implements TCache
 	}
 	if(rec == null){
 	    LOGGER.warning("Trying to insert null object");
-	    return;
+	    return false;
 	}
 
 	try{
@@ -127,9 +135,15 @@ public class BDBCache implements TCache
 	    byte[] bytes = Serializer.serializeRecord(carrier);
 
 	    if(bytes == null){
-		return;
+		return false;
 	    }
-	    DatabaseEntry deKey = new DatabaseEntry(key.getBytes(keyEncoding));
+	    DatabaseEntry deKey = null;
+	    try{
+		deKey = new DatabaseEntry(key.getBytes(keyEncoding));
+	    }catch(java.io.UnsupportedEncodingException e){
+		e.printStackTrace();
+		return false;
+	    }
 	    OperationStatus status = null;
 	    DatabaseEntry deData = new DatabaseEntry(bytes);
 	    lock.lock();
@@ -138,11 +152,11 @@ public class BDBCache implements TCache
 		    brokenConfigReason = "Config broken: did not run init() in put();  key=" + key;
 		    LOGGER.warning(brokenConfigReason);
 		    brokenConfig = true;
-		    return;
+		    return false;
 		}
 		if(db == null){
 		    LOGGER.info("BBBBBBBBBBBBBBBBBBBBBBBBB db is null; tsn=" + key);
-		    return;
+		    return false;
 		}
 		if(transaction == null || transactionCount > transactionSize){
 		    if(transaction != null && transaction.isValid()){
@@ -168,8 +182,11 @@ public class BDBCache implements TCache
 	    }
 	    //LOGGER.info("Put into cache tsn: " + rec.getTsn() + "  status: " + status);
 	} catch (Throwable e) {
-	    e.printStackTrace();
+	    LOGGER.warning(e.getMessage());
+	    //e.printStackTrace();
+	    return false;
 	}
+	return true;
     }
 
 
@@ -196,8 +213,8 @@ public class BDBCache implements TCache
 		return false;
 	    }
 	    
-	    Carrier c = getCarrier(key);
-	    if(c == null || c.object == null){
+	    Carrier c = getCarrier(key, true);
+	    if(c == null){
 		++misses;
 		return false;
 	    }
@@ -229,7 +246,7 @@ public class BDBCache implements TCache
 		return null;
 	    }
 	    
-	    Carrier carrier = getCarrier(key);
+	    Carrier carrier = getCarrier(key, false);
 	    if(carrier == null){
 		return null;
 	    }
@@ -256,6 +273,9 @@ public class BDBCache implements TCache
 	    brokenConfig = false;
 	    inited = false;
 	    LOGGER.info("Transaction=" + transaction);
+	    if(readOnly && transaction != null){
+		transaction.abort();
+	    }
 	    if(transaction != null){
 		LOGGER.info("Outstanding transaction: " + transaction.getId() + " state=" + transaction.getState() + " db=" + db);
 		if(transaction.isValid()){
@@ -313,7 +333,7 @@ public class BDBCache implements TCache
 	lock.lock();
 	try{
 	    db = null;
-	    init(dbDir, true, readOnly);
+	    init(dbDir, readOnly);
 	}catch(Throwable t){
 	    t.printStackTrace();
 	}
@@ -326,8 +346,8 @@ public class BDBCache implements TCache
 
     //////// private ///////////////////////////////////////////////////
 
-    protected void init(final String dbDir, final boolean overWrite, final boolean readOnly) throws DatabaseException{
-	LOGGER.info("OPENING DATABASE...." + dbDir);
+    protected void init(final String dbDir, final boolean readOnly) throws DatabaseException{
+	LOGGER.info("OPENING DATABASE....[" + dbDir + "] overWrite=" + overWrite + "  readOnly=" + readOnly + " encoding=" + keyEncoding + " TTL minutes=" + timeToLiveMinutes);
 
 	if(brokenConfig){
 	    LOGGER.info("OPENING DATABASE....broken config: " + brokenConfigReason);
@@ -344,6 +364,7 @@ public class BDBCache implements TCache
 	    if(openDatabases.containsKey(dbKey)){
 		db = openDatabases.get(dbKey);
 		if(db != null){
+		    LOGGER.info("OPENING DATABASE....EXISTING: " + db);
 		    return;
 		}
 	    }
@@ -356,10 +377,17 @@ public class BDBCache implements TCache
 		try{
 		    dbDirFq = f.getCanonicalPath();
 		}catch(IOException ie){
-
+		    ie.printStackTrace();
+		    brokenConfigReason = "Unable to create db directory: IOException: " + ie.getMessage();
+		    LOGGER.warning(brokenConfigReason);
+		    brokenConfig = true;
+		    return;
 		}
 		catch(SecurityException e){
 		    e.printStackTrace();
+		    brokenConfigReason = "Unable to create db directory: SecurityException: " + e.getMessage();
+		    LOGGER.warning(brokenConfigReason);
+		    brokenConfig = true;
 		}
 		if(f != null && f.exists()){
 		    if(overWrite){
@@ -393,7 +421,7 @@ public class BDBCache implements TCache
 			return;
 		    }
 		}
-		env.setup(f, false);
+		env.setup(f, BDB_DB_NAME, readOnly, true);
 		db = env.getDB();
 		openDatabases.put(dbKey, db);
 
@@ -422,7 +450,7 @@ public class BDBCache implements TCache
     }
 
 
-    private Carrier getCarrier(String key){
+    private Carrier getCarrier(String key, boolean keyOnly){
 	LOGGER.info("START getCarrier: " + key);
 	try{
 	    if(brokenConfig){
@@ -440,11 +468,9 @@ public class BDBCache implements TCache
 	    if(key == null){
 		return null;
 	    }
-	    if(db == null){
-		init(null);
-	    }
+
 	    DatabaseEntry deData = new DatabaseEntry();
-	    deData.setPartial(0, 0, true);
+
 	    OperationStatus status = null;
 	    try{
 		DatabaseEntry deKey = new DatabaseEntry(key.getBytes(keyEncoding));
@@ -467,8 +493,7 @@ public class BDBCache implements TCache
 	    
 	    LOGGER.info("HIT: " + key);
 	    try{
-		Carrier carrier = (Carrier) Serializer.deserializeRecord(deData.getData(), Carrier.class);
-		return carrier;
+		return (Carrier) Serializer.deserializeRecord(deData.getData(), Carrier.class);
 	    }catch(Throwable t){
 		t.printStackTrace();
 		return null;
@@ -486,9 +511,10 @@ public class BDBCache implements TCache
 	if(!f.exists()){
 	    throw new IOException("Does not exist: [" + f.getCanonicalPath() + "]");
 	}
+	LOGGER.info("Deleting contents of directory: " + f.getCanonicalPath());
 	File[]files = f.listFiles();
 	for(File file: files){
-	    
+	    file.delete();
 	}
     }
 
@@ -519,10 +545,17 @@ public class BDBCache implements TCache
 
 
     private boolean evictionTime(final String key, final long timeStampMinutes){
-	long nowMinutes = System.currentTimeMillis()/1000/60;
-	boolean evict = (nowMinutes -timeStampMinutes) > timeToLiveMinutes;
+	boolean evict = false;
+
+	if(timeToLiveMinutes == 0l){
+	    evict = true;
+	}else{
+	    long nowMinutes = System.currentTimeMillis()/1000/60;
+	    evict = (nowMinutes -timeStampMinutes) > timeToLiveMinutes;
+	}
+
 	if(evict){
-	    LOGGER.info("Evicting: " + key);
+	    LOGGER.info("Evicting key: " + key);
 	}
 	return evict;
     }
