@@ -10,13 +10,16 @@ import java.util.logging.LogManager;
 
 
 public class Simple extends Thread{
+    String content = "abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz";
     String prefix="";
-    int n = 1000000;
+    int n = 500000;
+
     public static final void main(final String[] args) {
 
 	Simple simple = new Simple("");
 	simple.start();
     }
+
 
     public Simple(final String prefix){
 	this.prefix = prefix;
@@ -28,20 +31,19 @@ public class Simple extends Thread{
         globalLogger.setLevel(java.util.logging.Level.OFF);
 
 	Properties p = new Properties();
-	p.setProperty(BDBCache.DB_DIR_KEY, "/tmp/jjj888");
+	p.setProperty(TCache.DB_DIR_KEY, "/tmp/bdb_cache");
+	p.setProperty(TCache.BDB_LOG_FILE_SIZE_MB, "256");
 	TCache cache = TCacheManager.instance(p);
 	String key = prefix + "hey";
 	for(int i=0; i<n; i++){
-	    Long lvalue = new Long(19+i);
+	    //Long lvalue = new Long(19+i);
+	    String lvalue = content + i;new String();
 	    cache.put(key+i, lvalue);
-	    if(i%1000 == 0){
+	    if(i%100000 == 0){
 		System.out.println(prefix + " " + i);
 	    }
 	    //System.out.println(key+i + ":" + cache.get(key+i));
 	}
-
-
-
 	cache.close();
     }
 

@@ -24,16 +24,6 @@ import com.sleepycat.je.EnvironmentFailureException;
 
 public class BDBCache implements TCache
 {
-    public static final String DB_DIR_KEY= "dbdir.BDBCache";
-    public static final String OVERWRITE_KEY = "overwrite.BDBCache";
-    public static final String READ_ONLY_KEY= "readOnly.BDBCache";
-    public static final String TTL_MINUTES_KEY= "timeToLiveMinutes.BDBCache";
-    public static final String KEY_ENCODING_KEY = "keyEncoding.BDBCache";
-
-    public static final String DEFAULT_CACHE_NAME = "bdbcache";
-
-    public static final String BDB_DB_NAME = "ca.gnewton.tuapait.BDBCache";
-
     private long timeToLiveMinutes = 60; // not Long.MAX_VALUE;
     //private long timeToLiveMinutes = Long.MAX_VALUE;
 
@@ -42,6 +32,9 @@ public class BDBCache implements TCache
     private static final Map<String, Database>openDatabases = new HashMap<String, Database>();
     private String keyEncoding="UTF-8";
     private int transactionSize = 32;
+    private long bdbLogFileSizeMb = 16l; // bdb defaults
+
+    private int deferedWriteSize = 2048;
 
     private volatile Database db = null;
     private volatile DbEnv env;
@@ -82,6 +75,11 @@ public class BDBCache implements TCache
 
     public boolean delete(String key){
 	LOGGER.info("START delete: " + key);
+	if(readOnly){
+	    LOGGER.info("No deletes: read only cache: " + key);
+	    return false;
+	}
+
 
 	if(brokenConfig){
 	    LOGGER.warning("Config broken: no caching functionality; unable to delete()");
@@ -114,10 +112,10 @@ public class BDBCache implements TCache
 
 
     public boolean put(String key, Serializable rec){
-	//if(readOnly){
-	//LOGGER.warning("Unable to write to READ-ONLY database; key=" + key);
-	//return false;
-	//}
+	if(readOnly){
+	    LOGGER.warning("No puts: read only cache: " + key);
+	    return false;
+	}
 	if(brokenConfig){
 	    LOGGER.warning("Config broken: no caching functionality; unable to put()");
 	    return false;
@@ -160,6 +158,7 @@ public class BDBCache implements TCache
 		    LOGGER.info("BBBBBBBBBBBBBBBBBBBBBBBBB db is null; tsn=" + key);
 		    return false;
 		}
+		/*
 		if(transaction == null || transactionCount > transactionSize){
 		    if(transaction != null && transaction.isValid()){
 			LOGGER.info("Commiting transaction: " + transaction.getId() + " state=" + transaction.getState());
@@ -167,15 +166,21 @@ public class BDBCache implements TCache
 			LOGGER.info("Committed transaction: " + transaction.getId() + " state=" + transaction.getState());
 			LOGGER.info("Cache hits: " + hits + " misses=" + misses + " %hits=" + (float)hits / (float)(hits+misses));
 		    }
-		    TransactionConfig config = new TransactionConfig();
-		    config.setReadUncommitted(true);
-		    transaction = db.getEnvironment().beginTransaction(null, config);
+		    //TransactionConfig config = new TransactionConfig();
+		    //config.setReadUncommitted(true);
+		    //transaction = db.getEnvironment().beginTransaction(null, config);
 		    LOGGER.info("Starting transaction: " + transaction.getId() + " state=" + transaction.getState());
 		    transactionCount = 0;
+		    }*/
+		if(transactionCount > deferedWriteSize){
+		    LOGGER.info("Syncing to db");
+		    db.sync();
+		    transactionCount = 0;
 		}
-		LOGGER.info("Putting to transaction: " + transaction.getId() + " state=" + transaction.getState());
+
+		//LOGGER.info("Putting to transaction: " + transaction.getId() + " state=" + transaction.getState());
 		status = db.put(transaction, deKey, deData);
-		LOGGER.info("Put to transaction: " + transaction.getId() + " state=" + transaction.getState());
+		//LOGGER.info("Put to transaction: " + transaction.getId() + " state=" + transaction.getState());
 		++transactionCount;
 		LOGGER.info("PUT: " + status + " key=" + key);
 	    }
@@ -185,7 +190,7 @@ public class BDBCache implements TCache
 	    //LOGGER.info("Put into cache tsn: " + rec.getTsn() + "  status: " + status);
 	} catch (Throwable e) {
 	    LOGGER.warning(e.getMessage());
-	    //e.printStackTrace();
+	    e.printStackTrace();
 	    return false;
 	}
 	return true;
@@ -431,7 +436,7 @@ public class BDBCache implements TCache
 			return;
 		    }
 		}
-		env.setup(f, BDB_DB_NAME, readOnly, true);
+		env.setup(f, BDB_DB_NAME, readOnly, true, bdbLogFileSizeMb);
 		db = env.getDB();
 		openDatabases.put(dbKey, db);
 
@@ -544,6 +549,9 @@ public class BDBCache implements TCache
 	    }
 	    if(p.containsKey(KEY_ENCODING_KEY)){
 		keyEncoding = p.getProperty(KEY_ENCODING_KEY);
+	    }
+	    if(p.containsKey(BDB_LOG_FILE_SIZE_MB)){
+		bdbLogFileSizeMb = Long.decode(p.getProperty(BDB_LOG_FILE_SIZE_MB));
 	    }
 	}
     }

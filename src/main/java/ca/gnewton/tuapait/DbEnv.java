@@ -31,9 +31,9 @@ public class DbEnv {
 
     // The setup() method opens all our databases and the environment
     // for us.
-    public void setup(File envHome, String dbName, boolean readOnly, boolean allowCreate)
+    public void setup(File envHome, String dbName, boolean readOnly, boolean allowCreate, long bdbLogFileSizeMb)
         throws DatabaseException {
-	long logFileMax = 1024l * 1024l * 16l;
+	long logFileMax = 1024l * 1024l * bdbLogFileSizeMb;
 
         EnvironmentConfig myEnvConfig = new EnvironmentConfig();
 	myEnvConfig.setConfigParam(EnvironmentConfig.CLEANER_EXPUNGE, "true");
@@ -52,8 +52,11 @@ public class DbEnv {
 
 	//myDbConfig.setDeferredWrite(true);
         // Allow transactions if we are writing to the database
-        myEnvConfig.setTransactional(true);
-        myDbConfig.setTransactional(true);
+        //myEnvConfig.setTransactional(true);
+	myEnvConfig.setTransactional(false);
+        //myDbConfig.setTransactional(true);
+        myDbConfig.setTransactional(false);
+	myDbConfig.setDeferredWrite(true);
 	try{
 	    myEnv = new Environment(envHome, myEnvConfig);
 	}catch(EnvironmentLockedException e){

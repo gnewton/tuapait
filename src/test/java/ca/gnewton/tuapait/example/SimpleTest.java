@@ -17,12 +17,18 @@ public class SimpleTest{
 
 	Simple simple = new Simple("k");
 	simple.start();
+	try{
+	    simple.join();
+	}catch(Throwable t){
+	    t.printStackTrace();
+	}
+
 	Assert.assertTrue(true);
     }
 
 
 
-    @Test
+    //@Test
     public void shouldRunOKMultiThreaded(){
 
 	Simple simple = new Simple("1");
