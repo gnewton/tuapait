@@ -1,17 +1,17 @@
 package ca.gnewton.tuapait;
 
-import java.util.Properties;
 import java.io.File;
 import java.io.IOException;
+import java.util.Properties;
 
+import ca.gnewton.tuapait.BDBCache;
+import com.sleepycat.je.EnvironmentFailureException;
 import org.junit.Assert;
-import org.junit.Test;
 import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import com.sleepycat.je.EnvironmentFailureException;
-import ca.gnewton.tuapait.BDBCache;
-import org.junit.rules.TemporaryFolder;
 
 @RunWith(JUnit4.class)
 public class BDBCacheTest{
@@ -30,7 +30,7 @@ public class BDBCacheTest{
 	    p.setProperty(BDBCache.OVERWRITE_KEY, "true");
 	    p.setProperty(BDBCache.TTL_MINUTES_KEY, "99999");
 
-	    c = (BDBCache)TCacheImpl.instance(p);
+	    c = (BDBCache)TCacheManager.instance(p);
 	    c.close();
 	}
 
@@ -73,7 +73,7 @@ public class BDBCacheTest{
 	    p.setProperty(BDBCache.OVERWRITE_KEY, "true");
 	    p.setProperty(BDBCache.TTL_MINUTES_KEY, "99999");
 
-	    c = (BDBCache)TCacheImpl.instance(p);
+	    c = (BDBCache)TCacheManager.instance(p);
 	    c.close();
 	}
 	catch(Throwable t){
@@ -102,12 +102,12 @@ public class BDBCacheTest{
 	    p.setProperty(BDBCache.READ_ONLY_KEY, "false");
 	    p.setProperty(BDBCache.OVERWRITE_KEY, "true");
 	    System.out.println(p);
-	    c = (BDBCache)TCacheImpl.instance(p);
+	    c = (BDBCache)TCacheManager.instance(p);
 	    Assert.assertTrue(c.put(key, value));
 	    c.close();
 
 	    p.setProperty(BDBCache.READ_ONLY_KEY, "true");
-	    c = (BDBCache)TCacheImpl.instance(p);
+	    c = (BDBCache)TCacheManager.instance(p);
 	    Assert.assertFalse(c.put(key, value2));
 	    c.close();
 	}
@@ -137,7 +137,7 @@ public class BDBCacheTest{
 	    p.setProperty(BDBCache.KEY_ENCODING_KEY, "foobar-887d3");
 	    p.setProperty(BDBCache.OVERWRITE_KEY, "true");
 
-	    c = (BDBCache)TCacheImpl.instance(p);
+	    c = (BDBCache)TCacheManager.instance(p);
 	    Assert.assertFalse(c.put(key, value));
 
 
@@ -168,7 +168,7 @@ public class BDBCacheTest{
 	    p.setProperty(BDBCache.OVERWRITE_KEY, "true");
 	    p.setProperty(BDBCache.TTL_MINUTES_KEY, "99999");
 
-	    c = (BDBCache)TCacheImpl.instance(p);
+	    c = (BDBCache)TCacheManager.instance(p);
 
 	    c.put(key, value);
 	    Assert.assertTrue(c.containsKey(key));
@@ -202,7 +202,7 @@ public class BDBCacheTest{
 	    p.setProperty(BDBCache.TTL_MINUTES_KEY, "99999");
 	    p.setProperty(BDBCache.OVERWRITE_KEY, "true");
 
-	    c = (BDBCache)TCacheImpl.instance(p);
+	    c = (BDBCache)TCacheManager.instance(p);
 
 	    c.put(key, value);
 	    c.delete(key);
@@ -235,12 +235,12 @@ public class BDBCacheTest{
 	    p.setProperty(BDBCache.OVERWRITE_KEY, "true");
 	    p.setProperty(BDBCache.TTL_MINUTES_KEY, "99999");
 
-	    c = (BDBCache)TCacheImpl.instance(p);
+	    c = (BDBCache)TCacheManager.instance(p);
 
 	    c.put(key, value);
 	    c.close();
 
-	    c = (BDBCache)TCacheImpl.instance(p);
+	    c = (BDBCache)TCacheManager.instance(p);
 	    Assert.assertFalse(c.containsKey(key));
 	    c.close();
 	}
@@ -269,12 +269,12 @@ public class BDBCacheTest{
 	    p.setProperty(BDBCache.OVERWRITE_KEY, "false");
 	    p.setProperty(BDBCache.TTL_MINUTES_KEY, "99999");
 
-	    c = (BDBCache)TCacheImpl.instance(p);
+	    c = (BDBCache)TCacheManager.instance(p);
 
 	    c.put(key, value);
 	    c.close();
 
-	    c = (BDBCache)TCacheImpl.instance(p);
+	    c = (BDBCache)TCacheManager.instance(p);
 	    Assert.assertTrue(c.containsKey(key));
 	    c.close();
 	}
@@ -303,7 +303,7 @@ public class BDBCacheTest{
 	    p.setProperty(BDBCache.OVERWRITE_KEY, "true");
 	    p.setProperty(BDBCache.TTL_MINUTES_KEY, "99999");
 
-	    c = (BDBCache)TCacheImpl.instance(p);
+	    c = (BDBCache)TCacheManager.instance(p);
 
 	    c.put(key, value);
 	    Assert.assertEquals(value, (String)c.get(key));
@@ -337,7 +337,7 @@ public void shouldZeroTimeToLiveShouldEvict(){
 	    p.setProperty(BDBCache.OVERWRITE_KEY, "true");
 	    p.setProperty(BDBCache.TTL_MINUTES_KEY, "0");
 
-	    c = (BDBCache)TCacheImpl.instance(p);
+	    c = (BDBCache)TCacheManager.instance(p);
 	    String ev = "_evict";
 	    c.put(key+ev, value+ev);
 	    Assert.assertFalse(c.containsKey(key+ev));
@@ -369,7 +369,7 @@ public void shouldCountZeroItemsOnStart(){
 	    p.setProperty(BDBCache.OVERWRITE_KEY, "true");
 	    p.setProperty(BDBCache.TTL_MINUTES_KEY, "0");
 
-	    c = (BDBCache)TCacheImpl.instance(p);
+	    c = (BDBCache)TCacheManager.instance(p);
 	    Assert.assertEquals(0, c.size());
 	    c.close();
 	}
@@ -398,7 +398,7 @@ public void shouldCountTwoItemsAfterAddingTwoItems(){
 	    p.setProperty(BDBCache.OVERWRITE_KEY, "true");
 	    p.setProperty(BDBCache.TTL_MINUTES_KEY, "0");
 
-	    c = (BDBCache)TCacheImpl.instance(p);
+	    c = (BDBCache)TCacheManager.instance(p);
 	    c.put(key,value);
 	    c.put(key+"z", value2);
 	    Assert.assertEquals(2, c.size());
@@ -429,7 +429,7 @@ public void shouldCountTwoItemsAfterAddingTwoItems(){
 	    p.setProperty(BDBCache.OVERWRITE_KEY, "false");
 	    p.setProperty(BDBCache.TTL_MINUTES_KEY, "99999");
 
-	    c = (BDBCache)TCacheImpl.instance(p);
+	    c = (BDBCache)TCacheManager.instance(p);
 
 	    c.put(key, value);
 	    c.put(key2, value2);
@@ -462,7 +462,7 @@ public void shouldCountTwoItemsAfterAddingTwoItems(){
 	    p.setProperty(BDBCache.OVERWRITE_KEY, "true");
 	    p.setProperty(BDBCache.TTL_MINUTES_KEY, "99999");
 
-	    c = (BDBCache)TCacheImpl.instance(p);
+	    c = (BDBCache)TCacheManager.instance(p);
 
 	    c.put(key, value);
 	    c.put(key2, value2);
@@ -496,7 +496,7 @@ public void shouldCountTwoItemsAfterAddingTwoItems(){
 	    p.setProperty(BDBCache.OVERWRITE_KEY, "true");
 	    p.setProperty(BDBCache.TTL_MINUTES_KEY, "99999");
 
-	    c = (BDBCache)TCacheImpl.instance(p);
+	    c = (BDBCache)TCacheManager.instance(p);
 
 	    c.put(key, value);
 	    c.get(key);
@@ -528,7 +528,7 @@ public void shouldCountTwoItemsAfterAddingTwoItems(){
 	    p.setProperty(BDBCache.OVERWRITE_KEY, "true");
 	    p.setProperty(BDBCache.TTL_MINUTES_KEY, "99999");
 
-	    c = (BDBCache)TCacheImpl.instance(p);
+	    c = (BDBCache)TCacheManager.instance(p);
 
 	    c.put(key, value);
 	    Assert.assertEquals(false, c.lastGetAHit());
@@ -560,7 +560,7 @@ public void shouldCountTwoItemsAfterAddingTwoItems(){
 	    p.setProperty(BDBCache.OVERWRITE_KEY, "true");
 	    p.setProperty(BDBCache.TTL_MINUTES_KEY, "99999");
 
-	    c = (BDBCache)TCacheImpl.instance(p);
+	    c = (BDBCache)TCacheManager.instance(p);
 
 	    c.put(key, value);
 	    c.get(key2);

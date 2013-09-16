@@ -3,7 +3,7 @@ package ca.gnewton.tuapait;
 import java.io.Serializable;
 import java.util.Properties;
 
-abstract public class TCacheImpl implements TCache{
+public class TCacheManager{
 
     public static final TCache instance(Properties p){
 	BDBCache cache = new BDBCache();

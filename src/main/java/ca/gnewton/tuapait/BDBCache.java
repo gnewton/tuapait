@@ -37,7 +37,7 @@ public class BDBCache implements TCache
     private long timeToLiveMinutes = 60; // not Long.MAX_VALUE;
     //private long timeToLiveMinutes = Long.MAX_VALUE;
 
-    private final Lock lock = new ReentrantLock();
+    private static final Lock lock = new ReentrantLock();
     private static final Logger LOGGER = Logger.getLogger(BDBCache.class.getName()); 
     private static final Map<String, Database>openDatabases = new HashMap<String, Database>();
     private String keyEncoding="UTF-8";
