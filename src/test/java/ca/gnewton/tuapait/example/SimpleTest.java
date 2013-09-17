@@ -4,7 +4,8 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.junit.Assert;
-
+import java.util.List;
+import java.util.ArrayList;
 
 
 
@@ -28,18 +29,35 @@ public class SimpleTest{
 
 
 
-    //@Test
+    @Test
     public void shouldRunOKMultiThreaded(){
+	List<Simple> simples = new ArrayList<Simple>();
+	for(int i=0; i<5; i++){
+	    Simple simple = new Simple(Integer.toString(i) + "_");
+	    simple.start();
+	    simples.add(simple);
+	}
 
-	Simple simple = new Simple("1");
-	simple.start();
-	Simple simple2 = new Simple("2");
-	simple2.start();
-	try{
-	    simple.join();
-	    simple2.join();
-	}catch(Throwable t){
-	    t.printStackTrace();
+	for(Simple simple: simples){
+	    try{
+		simple.join();
+	    }catch(Throwable t){
+		t.printStackTrace();
+	    }
+	}
+	simples = new ArrayList<Simple>();
+	for(int i=0; i<5; i++){
+	    Simple simple = new Simple(Integer.toString(i) + "_");
+	    simple.start();
+	    simples.add(simple);
+	}
+
+	for(Simple simple: simples){
+	    try{
+		simple.join();
+	    }catch(Throwable t){
+		t.printStackTrace();
+	    }
 	}
 	Assert.assertTrue(true);
     }

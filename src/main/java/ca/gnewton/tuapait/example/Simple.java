@@ -1,7 +1,6 @@
 package ca.gnewton.tuapait.example;
 
 import ca.gnewton.tuapait.TCache;
-import ca.gnewton.tuapait.BDBCache;
 import ca.gnewton.tuapait.TCacheManager;
 import java.util.logging.Level;
 import java.util.Properties;
@@ -32,19 +31,20 @@ public class Simple extends Thread{
 
 	Properties p = new Properties();
 	p.setProperty(TCache.DB_DIR_KEY, "/tmp/bdb_cache");
-	p.setProperty(TCache.BDB_LOG_FILE_SIZE_MB, "256");
+	p.setProperty(TCache.BDB_LOG_FILE_SIZE_MB_KEY, "256");
+	p.setProperty(TCache.CACHE_TYPE_KEY, "IMMUTABLE_STORE");
 	TCache cache = TCacheManager.instance(p);
 	String key = prefix + "hey";
 	for(int i=0; i<n; i++){
 	    //Long lvalue = new Long(19+i);
-	    String lvalue = content + i;new String();
+	    String lvalue = content + i;
 	    cache.put(key+i, lvalue);
 	    if(i%100000 == 0){
 		System.out.println(prefix + " " + i);
 	    }
 	    //System.out.println(key+i + ":" + cache.get(key+i));
 	}
-	cache.close();
+
     }
 
 }
